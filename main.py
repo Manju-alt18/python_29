@@ -1,286 +1,323 @@
-
-
-import csv
-from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+import requests
 import os
+from datetime import datetime
 
 FILE_NAME = "expenses.csv"
 
 
-# -----------------------------
-# Create CSV file if not exists
-# -----------------------------
+# ==========================================
+# CREATE EXPENSE FILE
+# ==========================================
 def create_file():
     if not os.path.exists(FILE_NAME):
-        with open(FILE_NAME, "w", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow(["ID", "Date", "Category", "Description", "Amount"])
-
-
-# -----------------------------
-# Add Expense
-# -----------------------------
-def add_expense():
-    print("\n========== ADD EXPENSE ==========")
-
-    category = input("Enter category: ").strip()
-    description = input("Enter description: ").strip()
-
-    while True:
-        try:
-            amount = float(input("Enter amount (₹): "))
-
-            if amount <= 0:
-                print("Amount must be greater than 0.")
-            else:
-                break
-
-        except ValueError:
-            print("Please enter a valid amount.")
-
-    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Find next ID
-    expenses = read_expenses()
-
-    if expenses:
-        new_id = int(expenses[-1]["ID"]) + 1
-    else:
-        new_id = 1
-
-    with open(FILE_NAME, "a", newline="") as file:
-        writer = csv.writer(file)
-
-        writer.writerow([
-            new_id,
-            date,
-            category,
-            description,
-            amount
-        ])
-
-    print("\nExpense added successfully!")
-
-
-# -----------------------------
-# Read Expenses
-# -----------------------------
-def read_expenses():
-    with open(FILE_NAME, "r", newline="") as file:
-        reader = csv.DictReader(file)
-        return list(reader)
-
-
-# -----------------------------
-# View Expenses
-# -----------------------------
-def view_expenses():
-    print("\n========== ALL EXPENSES ==========")
-
-    expenses = read_expenses()
-
-    if not expenses:
-        print("No expenses found.")
-        return
-
-    print("-" * 80)
-    print(
-        f"{'ID':<5}"
-        f"{'Date':<20}"
-        f"{'Category':<15}"
-        f"{'Description':<20}"
-        f"{'Amount':>10}"
-    )
-    print("-" * 80)
-
-    for expense in expenses:
-        print(
-            f"{expense['ID']:<5}"
-            f"{expense['Date']:<20}"
-            f"{expense['Category']:<15}"
-            f"{expense['Description']:<20}"
-            f"₹{float(expense['Amount']):>9.2f}"
-        )
-
-    print("-" * 80)
-
-
-# -----------------------------
-# Total Expenses
-# -----------------------------
-def total_expenses():
-    print("\n========== TOTAL EXPENSE ==========")
-
-    expenses = read_expenses()
-
-    total = 0
-
-    for expense in expenses:
-        total += float(expense["Amount"])
-
-    print(f"Total spent: ₹{total:.2f}")
-
-
-# -----------------------------
-# Category Summary
-# -----------------------------
-def category_summary():
-    print("\n========== CATEGORY SUMMARY ==========")
-
-    expenses = read_expenses()
-
-    if not expenses:
-        print("No expenses found.")
-        return
-
-    categories = {}
-
-    for expense in expenses:
-        category = expense["Category"]
-        amount = float(expense["Amount"])
-
-        if category in categories:
-            categories[category] += amount
-        else:
-            categories[category] = amount
-
-    print()
-
-    for category, amount in categories.items():
-        print(f"{category:<20} ₹{amount:.2f}")
-
-
-# -----------------------------
-# Monthly Summary
-# -----------------------------
-def monthly_summary():
-    print("\n========== MONTHLY SUMMARY ==========")
-
-    expenses = read_expenses()
-
-    if not expenses:
-        print("No expenses found.")
-        return
-
-    months = {}
-
-    for expense in expenses:
-        date = expense["Date"]
-        month = date[:7]  # YYYY-MM
-
-        amount = float(expense["Amount"])
-
-        if month in months:
-            months[month] += amount
-        else:
-            months[month] = amount
-
-    for month, amount in months.items():
-        print(f"{month}: ₹{amount:.2f}")
-
-
-# -----------------------------
-# Delete Expense
-# -----------------------------
-def delete_expense():
-    print("\n========== DELETE EXPENSE ==========")
-
-    expenses = read_expenses()
-
-    if not expenses:
-        print("No expenses found.")
-        return
-
-    try:
-        delete_id = int(input("Enter expense ID to delete: "))
-    except ValueError:
-        print("Invalid ID.")
-        return
-
-    found = False
-    new_expenses = []
-
-    for expense in expenses:
-
-        if int(expense["ID"]) == delete_id:
-            found = True
-        else:
-            new_expenses.append(expense)
-
-    if not found:
-        print("Expense ID not found.")
-        return
-
-    with open(FILE_NAME, "w", newline="") as file:
-
-        fieldnames = [
-            "ID",
+        df = pd.DataFrame(columns=[
             "Date",
             "Category",
             "Description",
-            "Amount"
-        ]
+            "Amount",
+            "Currency"
+        ])
 
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-
-        writer.writeheader()
-        writer.writerows(new_expenses)
-
-    print("Expense deleted successfully!")
+        df.to_csv(FILE_NAME, index=False)
 
 
-# -----------------------------
-# Main Menu
-# -----------------------------
+# ==========================================
+# LOAD EXPENSES
+# ==========================================
+def load_expenses():
+    create_file()
+    return pd.read_csv(FILE_NAME)
+
+
+# ==========================================
+# ADD EXPENSE
+# ==========================================
+def add_expense(category, description, amount, currency="INR"):
+
+    create_file()
+
+    try:
+        amount = float(amount)
+
+        if amount <= 0:
+            return False, "Amount must be greater than 0."
+
+    except ValueError:
+        return False, "Invalid amount."
+
+    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    new_expense = pd.DataFrame({
+        "Date": [date],
+        "Category": [category],
+        "Description": [description],
+        "Amount": [amount],
+        "Currency": [currency]
+    })
+
+    df = load_expenses()
+
+    df = pd.concat(
+        [df, new_expense],
+        ignore_index=True
+    )
+
+    df.to_csv(FILE_NAME, index=False)
+
+    return True, "Expense added successfully."
+
+
+# ==========================================
+# DELETE EXPENSE
+# ==========================================
+def delete_expense(index):
+
+    df = load_expenses()
+
+    if df.empty:
+        return False, "No expenses found."
+
+    try:
+        index = int(index)
+    except ValueError:
+        return False, "Invalid expense ID."
+
+    if index < 0 or index >= len(df):
+        return False, "Expense not found."
+
+    df = df.drop(index)
+    df = df.reset_index(drop=True)
+
+    df.to_csv(FILE_NAME, index=False)
+
+    return True, "Expense deleted successfully."
+
+
+# ==========================================
+# GET TOTAL EXPENSE
+# ==========================================
+def get_total():
+
+    df = load_expenses()
+
+    if df.empty:
+        return 0
+
+    return float(df["Amount"].sum())
+
+
+# ==========================================
+# GET CATEGORY SUMMARY
+# ==========================================
+def get_category_summary():
+
+    df = load_expenses()
+
+    if df.empty:
+        return {}
+
+    summary = (
+        df.groupby("Category")["Amount"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+
+    return summary.to_dict()
+
+
+# ==========================================
+# GET MONTHLY SUMMARY
+# ==========================================
+def get_monthly_summary():
+
+    df = load_expenses()
+
+    if df.empty:
+        return {}
+
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    df["Month"] = (
+        df["Date"]
+        .dt.to_period("M")
+        .astype(str)
+    )
+
+    summary = (
+        df.groupby("Month")["Amount"]
+        .sum()
+    )
+
+    return summary.to_dict()
+
+
+# ==========================================
+# GET DASHBOARD DATA
+# ==========================================
+def get_dashboard():
+
+    df = load_expenses()
+
+    if df.empty:
+
+        return {
+            "total": 0,
+            "highest": 0,
+            "average": 0,
+            "transactions": 0,
+            "top_category": "None"
+        }
+
+    total = float(df["Amount"].sum())
+
+    highest = float(df["Amount"].max())
+
+    average = float(df["Amount"].mean())
+
+    transactions = len(df)
+
+    top_category = (
+        df.groupby("Category")["Amount"]
+        .sum()
+        .idxmax()
+    )
+
+    return {
+        "total": total,
+        "highest": highest,
+        "average": average,
+        "transactions": transactions,
+        "top_category": top_category
+    }
+
+
+# ==========================================
+# CURRENCY EXCHANGE RATE
+# ==========================================
+def get_currency_rate(base, target):
+
+    try:
+
+        url = (
+            "https://api.frankfurter.app/latest"
+            f"?from={base}&to={target}"
+        )
+
+        response = requests.get(
+            url,
+            timeout=10
+        )
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+
+        if "rates" not in data:
+            return None
+
+        return data["rates"].get(target)
+
+    except requests.RequestException:
+
+        return None
+
+
+# ==========================================
+# CATEGORY CHART
+# ==========================================
+def create_category_chart():
+
+    df = load_expenses()
+
+    if df.empty:
+        return False
+
+    summary = (
+        df.groupby("Category")["Amount"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+
+    plt.figure(figsize=(9, 5))
+
+    summary.plot(kind="bar")
+
+    plt.title("Expenses by Category")
+    plt.xlabel("Category")
+    plt.ylabel("Amount")
+
+    plt.xticks(rotation=45)
+
+    plt.tight_layout()
+
+    plt.savefig("category_chart.png")
+
+    plt.close()
+
+    return True
+
+
+# ==========================================
+# MONTHLY CHART
+# ==========================================
+def create_monthly_chart():
+
+    df = load_expenses()
+
+    if df.empty:
+        return False
+
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    df["Month"] = (
+        df["Date"]
+        .dt.to_period("M")
+        .astype(str)
+    )
+
+    summary = (
+        df.groupby("Month")["Amount"]
+        .sum()
+    )
+
+    plt.figure(figsize=(9, 5))
+
+    summary.plot(
+        kind="line",
+        marker="o"
+    )
+
+    plt.title("Monthly Expenses")
+    plt.xlabel("Month")
+    plt.ylabel("Amount")
+
+    plt.grid(True)
+
+    plt.tight_layout()
+
+    plt.savefig("monthly_chart.png")
+
+    plt.close()
+
+    return True
+
+
+# ==========================================
+# MAIN
+# ==========================================
 def main():
 
     create_file()
 
-    while True:
+    print("Expense Tracker data system started.")
 
-        print("\n")
-        print("===================================")
-        print("        EXPENSE TRACKER")
-        print("===================================")
-        print("1. Add Expense")
-        print("2. View All Expenses")
-        print("3. Total Expenses")
-        print("4. Category-wise Summary")
-        print("5. Monthly Summary")
-        print("6. Delete Expense")
-        print("7. Exit")
-        print("===================================")
+    print("CSV file:", FILE_NAME)
 
-        choice = input("Enter your choice: ")
-
-        if choice == "1":
-            add_expense()
-
-        elif choice == "2":
-            view_expenses()
-
-        elif choice == "3":
-            total_expenses()
-
-        elif choice == "4":
-            category_summary()
-
-        elif choice == "5":
-            monthly_summary()
-
-        elif choice == "6":
-            delete_expense()
-
-        elif choice == "7":
-            print("\nThank you for using Expense Tracker!")
-            break
-
-        else:
-            print("\nInvalid choice. Please select 1-7.")
+    print("Total expense:", get_total())
 
 
-# -----------------------------
-# Start Program
-# -----------------------------
 if __name__ == "__main__":
     main()

@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Expense Tracker</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Expense Tracker</h1>
+
+        <div class="dashboard">
+
+            <div class="card">
+
+                <h3>Total Expenses</h3>
+
+                <p>₹{{ "%.2f"|format(total) }}</p>
+
+            </div>
+
+            <div class="card">
+
+                <h3>Total Transactions</h3>
+
+                <p>{{ expenses|length }}</p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ADD EXPENSE -->
+
+        <div class="section">
+
+            <h2>Add Expense</h2>
+
+            <form action="/add" method="POST">
+
+                <input
+                    type="text"
+                    name="category"
+                    placeholder="Category"
+                    required
+                >
+
+                <input
+                    type="text"
+                    name="description"
+                    placeholder="Description"
+                    required
+                >
+
+                <input
+                    type="number"
+                    name="amount"
+                    placeholder="Amount"
+                    step="0.01"
+                    required
+                >
+
+                <button type="submit">
+                    Add Expense
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <!-- EXPENSE TABLE -->
+
+        <div class="section">
+
+            <h2>Expenses</h2>
+
+            {% if expenses %}
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Date</th>
+
+                        <th>Category</th>
+
+                        <th>Description</th>
+
+                        <th>Amount</th>
+
+                        <th>Action</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for expense in expenses %}
+
+                    <tr>
+
+                        <td>
+                            {{ expense.Date }}
+                        </td>
+
+                        <td>
+                            {{ expense.Category }}
+                        </td>
+
+                        <td>
+                            {{ expense.Description }}
+                        </td>
+
+                        <td>
+                            ₹{{ "%.2f"|format(expense.Amount) }}
+                        </td>
+
+                        <td>
+
+                            <a
+                                href="/delete/{{ loop.index0 }}"
+                                class="delete"
+                            >
+                                Delete
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+            {% else %}
+
+            <p>No expenses added yet.</p>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>
